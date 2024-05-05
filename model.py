@@ -91,6 +91,8 @@ class QAgent:
             move = torch.argmax(pred).item()
             final_move = move
         return final_move
+    def save_model(self):
+        torch.save(self.model.state_dict(), "dqn.pth")
 
 dir_dict = {
     0:"UP",
@@ -122,7 +124,7 @@ def train():
 
             if score > max_score:
                 max_score = score
-                #save model
+                agent.save_model()
             
             print(f"Game:{agent.n_games},Current Score:{score}, Max Score:{max_score}")
             scores.append(score)
