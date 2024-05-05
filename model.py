@@ -75,6 +75,7 @@ class QAgent:
             sample = self.memory
         
         for state, action, reward, next_state, done in sample:
+            pygame.event.pump()
             self.trainer.train_step(state, action, reward, next_state, done)
 
     def get_action(self, state):
@@ -128,7 +129,6 @@ def train():
 
         if agent.n_games > 100:
             break
-
 
 if __name__ == "__main__":
     train()

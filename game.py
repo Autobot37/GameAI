@@ -28,7 +28,7 @@ MAP = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ]
 
-SPEED = 20
+SPEED = 20//4
 RADIUS = 8
 TILESIZE = 20
 WIDTH, HEIGHT = TILESIZE * len(MAP[0]), TILESIZE * len(MAP)
