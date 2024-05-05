@@ -106,23 +106,28 @@ def train():
     while True:
         state = game.get_state()
         action = agent.get_action(state)
-        reward, done = game.run_agent(dir_dict[action])
+        reward, score, done = game.run_agent(dir_dict[action])
         state_new = game.get_state()
         assert state.shape == state_new.shape
+        pygame.event.pump()
         agent.train_single(state, action, reward, state_new, done)
         agent.push(state, action, reward, state_new, done)
 
         if done:
             game.reset()
+            pygame.event.pump()
             agent.n_games += 1
             agent.train_buffer()
 
-            if reward > max_score:
-                max_score = reward
+            if score > max_score:
+                max_score = score
                 #save model
             
-            print(f"Game:{agent.n_games},Current Score:{reward}, Max Score:{max_score}")
-            scores.append(reward)
+            print(f"Game:{agent.n_games},Current Score:{score}, Max Score:{max_score}")
+            scores.append(score)
+
+        if agent.n_games > 100:
+            break
 
 
 if __name__ == "__main__":

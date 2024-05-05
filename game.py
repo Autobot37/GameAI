@@ -178,6 +178,7 @@ class Game:
             p.draw(self.display)
         text_surface = self.font.render(f"Score:{self.pacman.score}", False, (255, 255, 0))
         self.display.blit(text_surface, (0, 0))
+        pygame.event.pump()
         pygame.display.update()
         self.clock.tick(60)
 
@@ -227,19 +228,20 @@ class Game:
         return img_arr
 
     def run_agent(self, move):
+        pygame.event.pump()
         done = 0
         reward = 0
         self.frame_iter += 1
-        if self.agent.check_collision(self.pacman) or self.frame_iter > 300:
+        if self.agent.check_collision(self.pacman) or self.frame_iter > 100:
                 done = 1
-                reward = self.pacman.score
-                return reward, done
+                reward = -10
+                return reward, self.pacman.score , done
         
         self.pacman.move(move)
         self.agent.move()
         self.draw()
         self.clock.tick(60)
-        return self.pacman.score, done
+        return self.pacman.score, self.pacman.score, done
 
 # game = Game()
 # game.run()
