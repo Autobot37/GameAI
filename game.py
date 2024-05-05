@@ -1,159 +1,224 @@
 import pygame
+import sys
+from dataclasses import dataclass
+from typing import List
+import math
 import random
-from enum import Enum
-from collections import namedtuple
-import numpy as np
+import time
 
-pygame.init()
-font = pygame.font.Font('arial.ttf', 25)
-#font = pygame.font.SysFont('arial', 25)
+MAP = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+    [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
+
+SPEED = 5
+RADIUS = 8
+TILESIZE = 20
+WIDTH, HEIGHT = TILESIZE * len(MAP[0]), TILESIZE * len(MAP)
+pcsize = 10
+
+dx = [-1,1,0,0]
+dy = [0,0,1,-1]
+
+@dataclass
+class Position:
+    x:int
+    y:int
+ 
+class World:
+    def __init__(self, MAP:List[List]):
+        self.array = MAP
+        self.grid = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        for y, row in enumerate(self.array):
+            for x, cell in enumerate(row):
+                if cell:
+                    rect = pygame.draw.rect(self.grid, 'blue', (x*TILESIZE, y*TILESIZE, TILESIZE, TILESIZE))
+
+    def draw(self, display):
+        display.blit(self.grid, (0, 0))
+
+    def check_collision(self, pacman):
+        p_x, p_y = (pacman.x + pcsize)//TILESIZE, (pacman.y + pcsize)//TILESIZE
+        if 0 <= p_x < len(self.array[0]) and 0 <= p_y < len(self.array):
+            if self.array[p_y][p_x] == 0:
+                return True
+            else:
+                return False
+        return True
+
+class Pellet:
+    def __init__(self, x, y, radius):
+        self.x, self.y = x, y
+        self.radius = radius
+    def draw(self, display):
+        pygame.draw.circle(display, "red", (self.x, self.y), self.radius)
+    def check_collision(self, obj):
+        x, y = obj.x + pcsize, obj.y + pcsize
+        dis = math.sqrt((self.x - x)**2 + (self.y - y)**2)
+        if dis <= 2 * self.radius:
+            return True
+        else:
+            return False
 
 
-
-class Direction(Enum):
-    RIGHT = 1
-    LEFT = 2
-    UP = 3
-    DOWN = 4
-    
-Point = namedtuple('Point', 'x, y')
-
-# rgb colors
-WHITE = (255, 255, 255)
-RED = (200,0,0)
-BLUE1 = (0, 0, 255)
-BLUE2 = (0, 100, 255)
-BLACK = (0,0,0)
-
-BLOCK_SIZE = 20
-SPEED = 20
-
-class SnakeGameAI:
-    
-    def __init__(self, w=640, h=480):
-        self.w = w
-        self.h = h
-        # init display
-        self.display = pygame.display.set_mode((self.w, self.h))
-        pygame.display.set_caption('Snake')
-        self.clock = pygame.time.Clock()
-        self.snake = [self.head, 
-                      Point(self.head.x-BLOCK_SIZE, self.head.y),
-                      Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
-        self.reset
-        # init game state
-
-    def reset(self):  
-        self.direction = Direction.RIGHT
-        
-        self.head = Point(self.w/2, self.h/2)
-        self.snake = [self.head, 
-                      Point(self.head.x-BLOCK_SIZE, self.head.y),
-                      Point(self.head.x-(2*BLOCK_SIZE), self.head.y)]
-        
+class Pacman:
+    def __init__(self, pos:Position, World:World, pellets:List[Pellet]):
+        self.x, self.y = pos.x, pos.y
+        img = pygame.image.load("pcman.png").convert_alpha()
+        self.img = pygame.transform.scale(img, (pcsize*2, pcsize*2))
+        self.map = World
+        self.pellets = pellets
         self.score = 0
-        self.food = None
-        self._place_food()  
-        self.frame_iteration = 0
+        self.direction = "DOWN"
 
-    def _place_food(self):
-        x = random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE 
-        y = random.randint(0, (self.h-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE
-        self.food = Point(x, y)
-        if self.food in self.snake:
-            self._place_food()
+    def draw(self, display):
+        display.blit(self.img, (self.x, self.y))
 
-        
-    def play_step(self, action):
-        self.frame_iteration += 1
-        # 1. collect user input
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            
-        
-        # 2. move
-        self._move(action) # update the head
-        self.snake.insert(0, self.head)
+    def move(self, key:str):
+        if key != "None":
+            self.direction = key
+        d_x, d_y = 0, 0
+        if self.direction == "UP":
+            d_y -= SPEED
+        if self.direction == "DOWN":
+            d_y += SPEED
+        if self.direction == "LEFT":
+            d_x -= SPEED
+        if self.direction == "RIGHT":
+            d_x += SPEED
+        self.x += d_x
+        self.y += d_y
+        if self.map.check_collision(self):
+            self.x -= d_x
+            self.y -= d_y
+        for p in self.pellets:
+            if p.check_collision(self):
+                self.pellets.remove(p)
+                self.score += 1
 
-        reward = 0
-        
-        # 3. check if game over
-        game_over = False
-        if self.is_collision() or self.frame_iteration>100*len(self.snake):
-            game_over = True
-            reward = -10
-            return reward, game_over, self.score
-            
-        # 4. place new food or just move
-        if self.head == self.food:
-            self.score += 1
-            reward = 10
-            self._place_food()
-        else:
-            self.snake.pop()
-        
-        # 5. update ui and clock
-        self._update_ui()
-        self.clock.tick(SPEED)
-        # 6. return game over and score
-        return reward, game_over, self.score
+class Agent:
+    def __init__(self, pos:Position, World:World, pacman:Pacman):
+        self.x, self.y = pos.x, pos.y
+        img = pygame.image.load("pcman.png").convert_alpha()
+        self.img = pygame.transform.scale(img, (pcsize*2, pcsize*2))
+        self.map = World
+        self.pacman = pacman
+        self.direction = 0
+
+    def draw(self, display):
+        display.blit(self.img, (self.x, self.y))
     
-    def is_collision(self, pt=None):
-        if pt in None:
-            pt = self.head
-        # hits boundary
-        if pt.x > self.w - BLOCK_SIZE or pt.x < 0 or pt.y > self.h - BLOCK_SIZE or pt.y < 0:
+    def check_collision(self, pacman):
+        p_x, p_y = pacman.x, pacman.y
+        dist = (p_x - self.x)**2 + (p_y - self.y)**2
+        if dist <= 2 * pcsize:
             return True
-        # hits itself
-        if pt in self.snake[1:]:
-            return True
-        
         return False
-        
-    def _update_ui(self):
-        self.display.fill(BLACK)
-        
-        for pt in self.snake:
-            pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
-            pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
-            
-        pygame.draw.rect(self.display, RED, pygame.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        
-        text = font.render("Score: " + str(self.score), True, WHITE)
-        self.display.blit(text, [0, 0])
-        pygame.display.flip()
-        
-    def _move(self, action):
 
-        clock_wise = [Direction.RIGHT, Direction.DOWN,Direction.LEFT, Direction.UP]
-        idx = clock_wise.index(self.direction)
+    def move(self):
+        n_x, n_y = self.x + dx[self.direction] * SPEED, self.y + dy[self.direction] * SPEED
+        self.x, self.y = n_x, n_y
+        if self.map.check_collision(self):
+            self.x -= dx[self.direction] * SPEED
+            self.y -= dy[self.direction] * SPEED
 
-        if np.array_equal(action, [1,0,0]):
-            new_dir = clock_wise[idx]
-        elif np.array_equal(action, [0,1,0]):
-            next_idx = (idx +1) % 4 
-            new_dir = clock_wise[next_idx]
-        else:
-            next_idx = (idx -1) % 4 
-            new_dir = clock_wise[next_idx]
-        
-        self.direction = new_dir
+            p_x, p_y = self.pacman.x, self.pacman.y
+            dist = []
+            for x,y in zip(dx,dy):
+                n_x = self.x + x * SPEED
+                n_y = self.y + y * SPEED
+                distance = (n_x - p_x)**2 + (n_y - p_y)**2
+                dist.append(distance)
+            dirs = [0,1,2,3]
+            dirs = sorted(dirs,key = lambda x : dist[x], reverse=False)
+            for i in dirs:
+                self.x += dx[i] * SPEED
+                self.y += dy[i] * SPEED
+                if not self.map.check_collision(self):
+                    self.direction = (i + random.choice([0, 1]) * random.choice([0, 1])) % 4
+                    break
+                else:
+                    self.x -= dx[i] * SPEED
+                    self.y -= dy[i] * SPEED
 
+class Game:
+    def __init__(self):
+        pygame.init()
+        pygame.font.init()
+        self.font = pygame.font.SysFont('Comic Sans MS', 20)
+        self.display = pygame.display.set_mode((WIDTH, HEIGHT))
+        self.clock = pygame.time.Clock()
+        self.map = World(MAP)
+        self.pellets = [Pellet(j*TILESIZE + TILESIZE//2, i*TILESIZE + TILESIZE//2, 5) for i,r in enumerate(MAP) for j,c in enumerate(r) if c==1]
+        self.pacman = Pacman(Position(4 * TILESIZE, 0), self.map, self.pellets)
+        self.agent = Agent(Position(7 * TILESIZE,8 * TILESIZE), self.map, self.pacman)
 
-        x = self.head.x
-        y = self.head.y
-        if self.direction == Direction.RIGHT:
-            x += BLOCK_SIZE
-        elif self.direction == Direction.LEFT:
-            x -= BLOCK_SIZE
-        elif self.direction == Direction.DOWN:
-            y += BLOCK_SIZE
-        elif self.direction == Direction.UP:
-            y -= BLOCK_SIZE
-            
-        self.head = Point(x, y)
-            
+    def draw(self):
+        pygame.display.set_caption(f"fps:{self.clock.get_fps():.2f}")
+        self.display.fill((0,0,0))
+        self.map.draw(self.display)
+        self.pacman.draw(self.display)
+        self.agent.draw(self.display)
+        for p in self.pellets:
+            p.draw(self.display)
+        text_surface = self.font.render(f"Score:{self.pacman.score}", False, (255, 255, 0))
+        self.display.blit(text_surface, (0, 0))
+        pygame.display.update()
+        self.clock.tick(60)
 
+    def draw_end(self):
+        pygame.display.set_caption(f"fps:{self.clock.get_fps():.2f}")
+        self.display.fill((0,0,0))
+        text_surface = self.font.render(f"You fucking loser", False, (255, 255, 0))
+        self.display.blit(text_surface, (0, 0))
+        pygame.display.update()
+        self.clock.tick(60)
 
+    def run(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            if self.agent.check_collision(self.pacman):
+                self.draw_end()
+                time.sleep(1)
+                pygame.quit()
+                sys.exit()
+                print("colliding")
+
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_UP]:
+                self.pacman.move("UP")
+            if keys[pygame.K_DOWN]:
+                self.pacman.move("DOWN")
+            if keys[pygame.K_LEFT]:
+                self.pacman.move("LEFT")
+            if keys[pygame.K_RIGHT]:
+                self.pacman.move("RIGHT")
+            else:
+                self.pacman.move("None")
+            self.agent.move()
+            self.draw()
+            self.clock.tick(60)            
+
+if __name__ == "__main__":
+    game = Game()
+    game.run()
