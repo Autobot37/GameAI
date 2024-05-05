@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -16,28 +17,44 @@ class DQN(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 32, 3)
         self.conv2 = nn.Conv2d(32, 64, 3)
-        self.layer1 = nn.Linear(32, 128)
+        self.layer1 = nn.Linear(984064, 128)
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, n_actions)
     def forward(self, x):
+        x = x.unsqueeze(0)
         x = self.conv1(x)
         x = self.conv2(x)
-        x = x.reshape(1, -1)
+        x = x.reshape(x.size(0), -1)
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
-        return self.layer3(x)
+        return self.layer3(x)[0]
 
 class QTrainer:
     def __init__(self, model, lr, gamma):
         self.lr = lr
         self.gamma = gamma
         self.model = model
-        self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
     
     def train_step(self, state, action, reward, next_state, done):
-        pass
+        state = torch.tensor(state, dtype=torch.float)
+        next_state = torch.tensor(next_state, dtype=torch.float)
+        action = torch.tensor(action, dtype=torch.long)
+        reward = torch.tensor(reward, dtype=torch.float)
+        state = state.permute(2, 0, 1)
+        tf = torchvision.transforms.Resize((128, 128))
+        state = tf(state)
+        next_state = next_state.permute(2, 0, 1)
+        next_state = tf(next_state)
 
+        pred_q = self.model(state)
+        with torch.no_grad():
+            target_q = pred_q.clone()
+            target_q[action] = reward + (1 - done) * self.gamma * torch.max(self.model(next_state))
+        loss = self.criterion(pred_q, target_q)
+        self.optimizer.zero_grad()
+        self.optimizer.step()  
 
 class QAgent:
     def __init__(self):
@@ -46,8 +63,7 @@ class QAgent:
         self.memory = deque(maxlen=MAX_MEMORY)
         self.model = DQN(4)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
-    def get_state(self, game):
-        pass
+  
     def push(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
     def train_single(self, state, action, reward, next_state, done):
@@ -63,29 +79,36 @@ class QAgent:
 
     def get_action(self, state):
         final_move = 0
-        if self.n_games < 20:
-            final_move = random.randint(0,4)
+        if self.n_games < 5:
+            final_move = random.randint(0,3)
         else:
             state = torch.tensor(state, dtype=torch.float)
+            state = state.permute(2, 0, 1)
+            tf = torchvision.transforms.Resize((128, 128))
+            state = tf(state)
             pred = self.model(state)
             move = torch.argmax(pred).item()
             final_move = move
-        return move
+        return final_move
 
+dir_dict = {
+    0:"UP",
+    1:"DOWN",
+    2:"LEFT",
+    3:"RIGHT"
+}
 
 def train():
     scores = []
-    total_score = 0
     max_score = 0
     agent = QAgent() 
     game = Game()     
     while True:
-        state = agent.get_state(game)
+        state = game.get_state()
         action = agent.get_action(state)
-
-        reward, done, score = game.play_step(action)
-        state_new = agent.get_state(game)
-
+        reward, done = game.run_agent(dir_dict[action])
+        state_new = game.get_state()
+        assert state.shape == state_new.shape
         agent.train_single(state, action, reward, state_new, done)
         agent.push(state, action, reward, state_new, done)
 
@@ -94,12 +117,13 @@ def train():
             agent.n_games += 1
             agent.train_buffer()
 
-            if score > max_score:
-                max_score = score
+            if reward > max_score:
+                max_score = reward
                 #save model
             
-            print(f"Game:{agent.n_games},Score:{score}, Max Score:{max_score}")
-            scores.append(score)
-            
+            print(f"Game:{agent.n_games},Current Score:{reward}, Max Score:{max_score}")
+            scores.append(reward)
 
 
+if __name__ == "__main__":
+    train()

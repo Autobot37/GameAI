@@ -28,7 +28,7 @@ MAP = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ]
 
-SPEED = 5
+SPEED = 20
 RADIUS = 8
 TILESIZE = 20
 WIDTH, HEIGHT = TILESIZE * len(MAP[0]), TILESIZE * len(MAP)
@@ -166,9 +166,7 @@ class Game:
         self.display = pygame.display.set_mode((WIDTH, HEIGHT))
         self.clock = pygame.time.Clock()
         self.map = World(MAP)
-        self.pellets = [Pellet(j*TILESIZE + TILESIZE//2, i*TILESIZE + TILESIZE//2, 5) for i,r in enumerate(MAP) for j,c in enumerate(r) if c==1]
-        self.pacman = Pacman(Position(4 * TILESIZE, 0), self.map, self.pellets)
-        self.agent = Agent(Position(7 * TILESIZE,8 * TILESIZE), self.map, self.pacman)
+        self.reset()
 
     def draw(self):
         pygame.display.set_caption(f"fps:{self.clock.get_fps():.2f}")
@@ -202,7 +200,6 @@ class Game:
                 time.sleep(1)
                 pygame.quit()
                 sys.exit()
-                print("colliding")
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_UP]:
@@ -217,8 +214,32 @@ class Game:
                 self.pacman.move("None")
             self.agent.move()
             self.draw()
-            self.clock.tick(60)            
+            self.clock.tick(60)  
+    
+    def reset(self):
+        self.pellets = [Pellet(j*TILESIZE + TILESIZE//2, i*TILESIZE + TILESIZE//2, 5) for i,r in enumerate(MAP) for j,c in enumerate(r) if c==1]
+        self.pacman = Pacman(Position(4 * TILESIZE, 0), self.map, self.pellets)
+        self.agent = Agent(Position(7 * TILESIZE,8 * TILESIZE), self.map, self.pacman)
+        self.frame_iter = 0
 
-if __name__ == "__main__":
-    game = Game()
-    game.run()
+    def get_state(self):
+        img_arr = pygame.surfarray.array3d(pygame.display.get_surface())
+        return img_arr
+
+    def run_agent(self, move):
+        done = 0
+        reward = 0
+        self.frame_iter += 1
+        if self.agent.check_collision(self.pacman) or self.frame_iter > 300:
+                done = 1
+                reward = self.pacman.score
+                return reward, done
+        
+        self.pacman.move(move)
+        self.agent.move()
+        self.draw()
+        self.clock.tick(60)
+        return self.pacman.score, done
+
+# game = Game()
+# game.run()
