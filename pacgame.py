@@ -253,7 +253,7 @@ class Game:
         self.clock.tick(60)
         return self.pacman.score, self.pacman.score, done
 
-# if __name__ == "__main__":
-#     game = Game()
-#     game.update()
+if __name__ == "__main__":
+    game = Game()
+    game.update()
 
