@@ -21,7 +21,7 @@ class DQN(nn.Module):
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, n_actions)
     def forward(self, x):
-        x = x.unsqueeze(0)
+        x = x.unsqueeze(0).to(device)
         x = self.conv1(x)
         x = self.conv2(x)
         x = x.reshape(x.size(0), -1)
@@ -33,7 +33,7 @@ class QTrainer:
     def __init__(self, model, lr, gamma):
         self.lr = lr
         self.gamma = gamma
-        self.model = model
+        self.model = model.to(device)
         self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
     
@@ -49,6 +49,7 @@ class QTrainer:
         next_state = tf(next_state)
 
         pred_q = self.model(state)
+        pred_q = pred_q.to("cpu")
         with torch.no_grad():
             target_q = pred_q.clone()
             target_q[action] = reward + (1 - done) * self.gamma * torch.max(self.model(next_state))
@@ -117,7 +118,7 @@ def train():
         agent.push(state, action, reward, state_new, done)
 
         if done:
-            game.reset()
+            game.start()
             pygame.event.pump()
             agent.n_games += 1
             agent.train_buffer()
@@ -129,7 +130,7 @@ def train():
             print(f"Game:{agent.n_games},Current Score:{score}, Max Score:{max_score}")
             scores.append(score)
 
-        if agent.n_games > 100:
+        if agent.n_games > 1:
             break
 
 if __name__ == "__main__":
